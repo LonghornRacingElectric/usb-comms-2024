@@ -9,7 +9,26 @@ codec = 'ascii'
 baud = 115200
 
 
-def available_serial_ports() -> list[str]:
+def print_banner():
+    banner = "\n".join([
+        "██╗     ██╗  ██╗██████╗ ███████╗",
+        "██║     ██║  ██║██╔══██╗██╔════╝",
+        "██║     ███████║██████╔╝█████╗  ",
+        "██║     ██╔══██║██╔══██╗██╔══╝  ",
+        "███████╗██║  ██║██║  ██║███████╗",
+        "╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝",
+    ])
+
+    print()
+    print(banner)
+    print()
+    print("2024 Longhorn Racing Electric USB communication tool.")
+    print("Compatible with VCU and HVC.")
+    print("Press [Enter] to quit.")
+    print()
+
+
+def find_ports(input_queue: queue.Queue) -> list[str]:
     if sys.platform.startswith('win'):
         ports = ['COM%s' % (i + 1) for i in range(256)]
     elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
@@ -21,22 +40,40 @@ def available_serial_ports() -> list[str]:
         raise EnvironmentError('Unsupported platform')
 
     result = []
-    for port in ports:
-        try:
-            s = serial.Serial(port)
-            s.close()
-            result.append(port)
-        except (OSError, serial.SerialException):
-            pass
+    searching_i = -1
+    while True:
+        for port in ports:
+            try:
+                s = serial.Serial(port)
+                s.close()
+                result.append(port)
+            except (OSError, serial.SerialException):
+                pass
+
+        if result:
+            break
+        elif not input_queue.empty():
+            input_queue.get()
+            print()
+            print("No devices found.")
+            print()
+            while input_queue.empty():
+                time.sleep(0.01)
+            exit(0)
+        else:
+            r = "" if searching_i == -1 else "\r"
+            searching_i = (searching_i + 1) % 4
+            message = "\rSearching for devices" + ("." * searching_i)
+            print(r + "                           ", end="")
+            print(message, end="")
+            sys.stdout.flush()
+            time.sleep(0.2)
+
     return result
 
 
 def ask_which_port(ports: list[str]) -> str:
     print()
-    if len(ports) == 0:
-        print("Nothing detected on any port.")
-        exit(0)
-
     if len(ports) == 1:
         return ports[0]
 
@@ -65,7 +102,9 @@ def close_connection(cxn: serial.Serial):
     print(f"\nClosed serial port {cxn.port}\n")
 
 
-def loop(cxn: serial.Serial, input_queue: queue.Queue):
+def main_loop(cxn: serial.Serial, input_queue: queue.Queue):
+    input_queue.queue.clear()
+
     while True:
         while cxn.in_waiting:
             b = cxn.read(cxn.in_waiting)
@@ -100,11 +139,12 @@ def start_input_thread() -> queue.Queue:
 
 
 def main():
-    ports = available_serial_ports()
+    print_banner()
+    input_queue = start_input_thread()
+    ports = find_ports(input_queue)
     port = ask_which_port(ports)
     cxn = open_connection(port)
-    input_queue = start_input_thread()
-    loop(cxn, input_queue)
+    main_loop(cxn, input_queue)
     close_connection(cxn)
 
 
