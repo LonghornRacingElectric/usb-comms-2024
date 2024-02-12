@@ -25,7 +25,6 @@ def print_banner():
     print("2024 Longhorn Racing Electric USB communication tool.")
     print("Compatible with VCU and HVC.")
     print("Press [Enter] to quit.")
-    print()
 
 
 def find_ports(input_queue: queue.Queue) -> list[str]:
@@ -61,7 +60,7 @@ def find_ports(input_queue: queue.Queue) -> list[str]:
                 time.sleep(0.01)
             exit(0)
         else:
-            r = "" if searching_i == -1 else "\r"
+            r = "\n" if searching_i == -1 else "\r"
             searching_i = (searching_i + 1) % 4
             message = "\rSearching for devices" + ("." * searching_i)
             print(r + "                           ", end="")
@@ -93,7 +92,7 @@ def ask_which_port(ports: list[str]) -> str:
 
 def open_connection(port: str) -> serial.Serial:
     cxn = serial.Serial(port, baudrate=baud, timeout=0.05)
-    print(f"\nListening on serial port {port}...\n")
+    print(f"Listening on serial port {port}...\n")
     return cxn
 
 
